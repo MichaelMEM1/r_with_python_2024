@@ -13,7 +13,7 @@ library(shiny)
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
+    titlePanel(textOutput("title")),
 
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
@@ -54,13 +54,17 @@ ui <- fluidPage(
             radioButtons("disp", "Display",
                          choices = c(Head = "head",
                                      All = "all"),
-                         selected = "head")
+                         selected = "head"),
+            tags$hr(),
+            actionButton("go","Plot Linear Model")
         ),
 
         # Show a plot of the generated distribution
         mainPanel(
            plotOutput("distPlot"),
            plotOutput("lmPlot"),
+           verbatimTextOutput("R2"),
+           verbatimTextOutput("CO"),
            tableOutput("contents")
         )
     )
@@ -69,6 +73,12 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
+    lmdata <- reactiveValues(model = NULL,
+        rsq = NULL,
+        coef = NULL,
+        Sl = NULL
+    )
+    
     dataInput <- reactive({
         req(input$file1)
         
@@ -78,26 +88,73 @@ server <- function(input, output) {
                        quote = input$quote)
         return(df)
     })
-    
-    # output$distPlot <- renderPlot({
-    #     # generate bins based on input$bins from ui.R
-    #     x    <- faithful[, 2]
-    #     bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    #     print(bins)
-    #     # draw the histogram with the specified number of bins
-    #     hist(x, breaks = bins, col = 'darkgray', border = 'white')
-    # })
-    # 
+
+    output$title <- renderText({
+    if (is.null(input$file1)) {
+        "Data from:"
+    } else {
+        paste("Data from:", input$file1$name)
+    }
+ })
+    observeEvent(input$go,{update_lm()
+
+    })
+
+    update_lm <- function(){
+        req(dataInput())
+        
+        lmdata$model <- lm( y ~ x, data = dataInput())
+        lmdata$rsq <- summary(lmdata$model)$r.squared
+        lmdata$coef <- summary(lmdata$model)$coefficients[1]
+        lmdata$Sl <- summary(lmdata$model)$coefficients[2]
+
+    }
     
     output$distPlot <- renderPlot({
-        plot(dataInput()$x,dataInput()$y)
+        plot(dataInput()$x,dataInput()$y,
+            main = paste("Distribution Plot of", input$file1$name),
+             xlab = colnames(dataInput())[1],
+             ylab = colnames(dataInput())[2],
+             col = "black",
+             border = "white")
     })
     
-    output$lmtPlot <- renderPlot({
-        plot(dataInput()$x,dataInput()$y)
+    output$lmPlot <- renderPlot({
+        req(lmdata$model)
+        plot(dataInput()$x,dataInput()$y,
+            main = paste("Linear Model Plot of", input$file1$name),
+             xlab = colnames(dataInput())[1],
+             ylab = colnames(dataInput())[2],
+             col = "black",
+             border = "white")
+            abline(lmdata$model, col = 'red')
+
+         text(x = min(dataInput()$x), y = max(dataInput()$y),
+         labels = paste("R-squared =", round(lmdata$rsq, 3)),
+         adj = c(0, 1), pos = 4)
+    
+    text(x = min(dataInput()$x), y = max(dataInput()$y) * 0.95,
+         labels = paste("Slope =", round(lmdata$Sl, 3)),
+         adj = c(0, 1), pos = 4)
+    
+    text(x = min(dataInput()$x), y = max(dataInput()$y) * 0.9,
+         labels = paste("Y Coefficient =", round(lmdata$coef, 3)),
+         adj = c(0, 1), pos = 4)
+        
     })
+
+    output$R2 <- renderText({
+        paste ("R^2 =", lmdata$rsq,"Slope :", lmdata$Sl)
+        
+        }) 
     
+    output$CO<- renderText({
+        paste ( "Y Coefficient :", lmdata$coef)
+        
+        })  
+   
     
+   
     output$contents <- renderTable({
         
         # input$file1 will be NULL initially. After the user selects
