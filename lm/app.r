@@ -55,7 +55,9 @@ ui <- fluidPage(
                          choices = c(Head = "head",
                                      All = "all"),
                          selected = "head"),
+            # Horizontal line ----
             tags$hr(),
+            # Button to plot linear model
             actionButton("go","Plot Linear Model")
         ),
 
@@ -72,13 +74,13 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
+    # Setting all the reactive values at the start to null
     lmdata <- reactiveValues(model = NULL,
         rsq = NULL,
         coef = NULL,
         Sl = NULL
     )
-    
+    # Reading the uploaded CSV file as a data frame labeled DataInput
     dataInput <- reactive({
         req(input$file1)
         
@@ -88,7 +90,7 @@ server <- function(input, output) {
                        quote = input$quote)
         return(df)
     })
-
+    # Creating a Dynamic title based on the CSV file uploaded
     output$title <- renderText({
     if (is.null(input$file1)) {
         "Data from:"
@@ -99,7 +101,7 @@ server <- function(input, output) {
     observeEvent(input$go,{update_lm()
 
     })
-
+    # Creating the Linear model function and isolating the R^2, the y coefficient, and the Slope from the summary data.
     update_lm <- function(){
         req(dataInput())
         
@@ -109,7 +111,7 @@ server <- function(input, output) {
         lmdata$Sl <- summary(lmdata$model)$coefficients[2]
 
     }
-    
+    # Creating the first plot of the UI: the distribution of data
     output$distPlot <- renderPlot({
         plot(dataInput()$x,dataInput()$y,
             main = paste("Distribution Plot of", input$file1$name),
@@ -118,7 +120,7 @@ server <- function(input, output) {
              col = "black",
              border = "white")
     })
-    
+    # Creating the Second plot of the UI: the linear model plot (I.E the distribution with the line from the linear model
     output$lmPlot <- renderPlot({
         req(lmdata$model)
         plot(dataInput()$x,dataInput()$y,
@@ -128,7 +130,7 @@ server <- function(input, output) {
              col = "black",
              border = "white")
             abline(lmdata$model, col = 'red')
-
+    # Adding the R^2 , Slope, and Y Coefficient to the linear model plot
          text(x = min(dataInput()$x), y = max(dataInput()$y),
          labels = paste("R-squared =", round(lmdata$rsq, 3)),
          adj = c(0, 1), pos = 4)
@@ -142,7 +144,7 @@ server <- function(input, output) {
          adj = c(0, 1), pos = 4)
         
     })
-
+# Creating a seperate line of text for the R^2, slope, and y Coefficient
     output$R2 <- renderText({
         paste ("R^2 =", lmdata$rsq,"Slope :", lmdata$Sl)
         
@@ -154,7 +156,7 @@ server <- function(input, output) {
         })  
    
     
-   
+   # Rendering the data from the CSV
     output$contents <- renderTable({
         
         # input$file1 will be NULL initially. After the user selects
